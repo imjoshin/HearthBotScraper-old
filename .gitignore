@@ -1,1 +1,3 @@
 *.pyc
+auth.py
+log

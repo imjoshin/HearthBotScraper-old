@@ -1,54 +1,85 @@
-import urllib2
+import urllib2, time, datetime
 import settings
+from database import Database
 from bs4 import BeautifulSoup
 
 def main():
-    list_url = "%s/set/%s" % (settings.BASE_URL, settings.EXPANSION)
-    list_page = urllib2.urlopen(list_url)
-    list_soup = BeautifulSoup(list_page, 'html.parser')
-    cards = list_soup.find_all('div', attrs={'class': 'card'})
+	while True:
+		scan()
+		log("Sleeping for %d seconds..." % (settings.SLEEP_TIME), False)
+		time.sleep(settings.SLEEP_TIME)
 
-    # loop through cards
-    for card in cards:
-        img = card.find('a')
-        card_url = "%s%s" % (settings.BASE_URL, img.get('href'))
-        card_page = urllib2.urlopen(card_url)
-        card_soup = BeautifulSoup(card_page, 'html.parser')
+def scan():
+	db = Database()
 
-        # check if card needs to be parsed
-        if True:
-            # get name
-            name_span = card_soup.find('h1', attrs={'class': 'cardname'})
-            cname = name_span.find('span').text
-            print cname
+	# get list of cards for main page
+	list_url = "%s/set/%s" % (settings.BASE_URL, settings.EXPANSION)
+	list_page = urllib2.urlopen(list_url)
+	list_soup = BeautifulSoup(list_page, 'html.parser')
+	cards = list_soup.find_all('div', attrs={'class': 'card'})
 
-            details_div = card_soup.find('div', attrs={'class': 'icR'})
-            details = details_div.find_all('div', attrs={'class': 'tr'})
-            fields = {}
+	# loop through cards
+	for card in cards:
+		img = card.find('a')
+		card_url = "%s%s" % (settings.BASE_URL, img.get('href'))
+		card_page = urllib2.urlopen(card_url)
+		card_soup = BeautifulSoup(card_page, 'html.parser')
 
-            for detail in details:
-                dt = detail.find('dt')
-                dd = detail.find('dd')
+		# get name
+		name_span = card_soup.find('h1', attrs={'class': 'cardname'})
+		cname = filterText(name_span.find('span').text)
 
-                if dt is None or dd is None:
-                    continue
+		db.query("SELECT * FROM card WHERE name = '%s'" % (cname))
+		db_cards = db.fetch()
 
-                key = detail.find('dt').text.lower()
-                value = detail.find('dd').text
-                fields[key] = value
-                print "\t%s: %s" % (key, ' '.join(value.split()))
+		# check if card needs to be parsed
+		if len(db_cards) is 0:
+			log("Found '%s'" % cname)
 
-            cclass = 'Neutral' if 'class' not in fields else fields['class']
-            ctype = fields['type']
-            ctext = fields['text']
-            crarity = fields['rarity']
-            ccost = fields['cost']
-            cset = settings.EXPANSION_NAME
-            cimg = "%s%s" % (settings.BASE_URL, img.find('img').get('src'))
+			details_div = card_soup.find('div', attrs={'class': 'icR'})
+			details = details_div.find_all('div', attrs={'class': 'tr'})
+			fields = {}
 
+			for detail in details:
+				dt = detail.find('dt')
+				dd = detail.find('dd')
 
+				if dt is None or dd is None:
+					continue
 
+				key = detail.find('dt').text.lower()
+				value = detail.find('dd').text
+				fields[key] = value
+				log("\t%s: %s" % (key, filterText(value)))
 
+			cclass = 'Neutral' if 'class' not in fields else fields['class']
+			ctype = fields['type']
+			ctext = filterText(fields['text'])
+			crarity = fields['rarity']
+			ccost = fields['cost']
+			cset = settings.EXPANSION_NAME
+			cexpiration = settings.EXPANSION_RELEASE
+			cimg = "%s%s" % (settings.BASE_URL, img.find('img').get('src'))
+
+			query =  """
+			INSERT INTO card (name, `set`, class, type, text, rarity, cost, img, collectible, expiration, added_by)
+			VALUES ('%s', '%s', '%s', '%s', '%s', '%s', %d, '%s', %d, '%s', %d)
+			""" % (cname, cset, cclass, ctype, ctext, crarity, int(ccost), cimg, 1, cexpiration, -1)
+
+			db.query(query)
+
+def filterText(str):
+	str = ' '.join(str.split())
+	str = str.replace("'", "\\'")
+	return str
+
+def log(str, write = True):
+	logFile = "log"
+	p = "%s : %s" % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'), str)
+	print(p)
+	if write:
+		with open(logFile, "a") as l:
+			l.write("%s\n" % p)
 
 if __name__ == "__main__":
 	main()
