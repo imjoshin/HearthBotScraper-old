@@ -38,6 +38,11 @@ def scan():
 
 			details_div = card_soup.find('div', attrs={'class': 'icR'})
 			details = details_div.find_all('div', attrs={'class': 'tr'})
+			img_el = img.find('img')
+
+			if img_el is None:
+				continue
+
 			fields = {}
 
 			for detail in details:
@@ -53,13 +58,13 @@ def scan():
 				log("\t%s: %s" % (key, filterText(value)))
 
 			cclass = 'Neutral' if 'class' not in fields else fields['class']
-			ctype = fields['type']
-			ctext = filterText(fields['text'])
-			crarity = fields['rarity']
-			ccost = fields['cost']
+			ctype = '' if 'type' not in fields else fields['type']
+			ctext = '' if 'text' not in fields else filterText(fields['text'])
+			crarity = '' if 'rarity' not in fields else fields['rarity']
+			ccost = '' if 'cost' not in fields else fields['cost']
 			cset = settings.EXPANSION_NAME
 			cexpiration = settings.EXPANSION_RELEASE
-			cimg = "%s%s" % (settings.BASE_URL, img.find('img').get('src'))
+			cimg = "%s%s" % (settings.BASE_URL, img_el.get('src'))
 
 			query =  """
 			INSERT INTO card (name, `set`, class, type, text, rarity, cost, img, collectible, expiration, added_by)
