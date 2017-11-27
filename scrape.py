@@ -29,7 +29,7 @@ def scan():
 		name_span = card_soup.find('h1', attrs={'class': 'cardname'})
 		cname = filterText(name_span.find('span').text)
 
-		db.query("SELECT * FROM card WHERE name = '%s' AND rtime IS NOT NULL" % (cname))
+		db.query("SELECT * FROM card WHERE name = '%s' AND rtime IS NULL" % (cname))
 		db_cards = db.fetch()
 
 		# check if card needs to be parsed
