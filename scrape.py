@@ -57,21 +57,21 @@ def scan():
 				fields[key] = value
 				log("\t%s: %s" % (key, filterText(value)))
 
-			cclass = 'Neutral' if 'class' not in fields else fields['class']
-			ctype = '' if 'type' not in fields else fields['type']
-			ctext = '' if 'text' not in fields else filterText(fields['text'])
-			crarity = '' if 'rarity' not in fields else fields['rarity']
-			ccost = '' if 'cost' not in fields else fields['cost']
-			cattack = '' if 'attack' not in fields else fields['attack']
-			chealth = '' if 'health' not in fields else fields['health']
+			cclass = 'Neutral' if 'class' not in fields else fields['class'].strip()
+			ctype = '' if 'type' not in fields else fields['type'].strip()
+			ctext = '' if 'text' not in fields else filterText(fields['text'].strip())
+			crarity = '' if 'rarity' not in fields else fields['rarity'].strip()
+			ccost = '' if 'cost' not in fields else fields['cost'].strip()
+			cattack = '' if 'attack' not in fields else fields['attack'].strip()
+			chealth = '' if 'health' not in fields else fields['health'].strip()
 			cset = settings.EXPANSION_NAME
 			cexpiration = settings.EXPANSION_RELEASE
 			cimg = "%s%s" % (settings.BASE_URL, img_el.get('src'))
 
 			query =  """
 			INSERT INTO card (name, `set`, class, type, text, rarity, cost, attack, health, img, collectible, expiration, added_by)
-			VALUES ('%s', '%s', '%s', '%s', '%s', '%s', %d, %d, %d, '%s', %d, '%s', %d)
-			""" % (cname, cset, cclass, ctype, ctext, crarity, int(ccost), int(cattack), int(chealth), cimg, 1, cexpiration, -1)
+			VALUES ('%s', '%s', '%s', '%s', '%s', '%s', %d, %s, %s, '%s', %d, '%s', %d)
+			""" % (cname, cset, cclass, ctype, ctext, crarity, int(ccost), int(cattack) if cattack is not '' else 'null', int(chealth) if chealth is not '' else 'null', cimg, 1, cexpiration, -1)
 
 			db.query(query)
 
