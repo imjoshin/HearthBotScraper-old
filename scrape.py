@@ -71,7 +71,7 @@ def scan():
 			query =  """
 			INSERT INTO card (name, `set`, class, type, text, rarity, cost, attack, health, img, collectible, expiration, added_by)
 			VALUES ('%s', '%s', '%s', '%s', '%s', '%s', %d, %s, %s, '%s', %d, '%s', %d)
-			""" % (cname, cset, cclass, ctype, ctext, crarity, int(ccost), int(cattack) if cattack is not '' else 'null', int(chealth) if chealth is not '' else 'null', cimg, 1, cexpiration, -1)
+			""" % (cname, cset, cclass, ctype, ctext, crarity, int(ccost), 'null' if not isNumeric(cattack) else int(cattack), 'null' if not isNumeric(chealth) else int(chealth), cimg, 1, cexpiration, -1)
 
 			db.query(query)
 
@@ -79,6 +79,13 @@ def filterText(str):
 	str = ' '.join(str.split())
 	str = str.replace("'", "\\'")
 	return str
+
+def isNumeric(i):
+    try:
+        int(i)
+        return True
+    except ValueError:
+        return False
 
 def log(str, write = True):
 	logFile = "log"
