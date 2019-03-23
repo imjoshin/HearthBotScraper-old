@@ -14,22 +14,36 @@ def scan():
 
 	# get list of cards for main page
 	list_url = "%s/set/%s" % (settings.BASE_URL, settings.EXPANSION)
-	list_page = urllib2.urlopen(list_url)
+
+	#override for now until set page is up
+	try:
+		list_url = "%s/index.php/" % (settings.BASE_URL)
+		list_page = urllib2.urlopen(list_url)
+	except:
+		log("Failed to open %s" % (settings.BASE_URL))
+		return
+
 	list_soup = BeautifulSoup(list_page, 'html.parser')
 	cards = list_soup.find_all('div', attrs={'class': 'card'})
+	log("Found %d cards at %s" % (len(cards), list_url))
 
 	# loop through cards
 	for card in cards:
 		img = card.find('a')
 		card_url = "%s%s" % (settings.BASE_URL, img.get('href'))
-		card_page = urllib2.urlopen(card_url)
-		card_soup = BeautifulSoup(card_page, 'html.parser')
+		
+		try:
+			card_page = urllib2.urlopen(card_url)
+			card_soup = BeautifulSoup(card_page, 'html.parser')
+		except:
+			log("Failed to open %s" % (card_url))
+			continue
 
 		# get name
 		name_span = card_soup.find('h1', attrs={'class': 'cardname'})
 		cname = filterText(name_span.find('span').text)
 
-		db.query("SELECT * FROM card WHERE name = '%s' AND rtime IS NULL" % (cname))
+		db.query("SELECT * FROM card WHERE name = '%s'" % (cname))
 		db_cards = db.fetch()
 
 		# check if card needs to be parsed
@@ -70,7 +84,7 @@ def scan():
 
 			query =  """
 			INSERT INTO card (name, `set`, class, type, text, rarity, cost, attack, health, img, collectible, expiration, added_by)
-			VALUES ('%s', '%s', '%s', '%s', '%s', '%s', %d, %s, %s, '%s', %d, '%s', %d)
+			VALUES ("%s", "%s", "%s", "%s", "%s", "%s", %d, %s, %s, "%s", %d, "%s", %d)
 			""" % (cname, cset, cclass, ctype, ctext, crarity, int(ccost), 'null' if not isNumeric(cattack) else int(cattack), 'null' if not isNumeric(chealth) else int(chealth), cimg, 1, cexpiration, -1)
 
 			db.query(query)
