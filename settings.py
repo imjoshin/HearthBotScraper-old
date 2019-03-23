@@ -1,4 +1,6 @@
-BASE_URL = "https://www.hearthspoiler.com"
+RELEASE_SUB = "ROSPRDT"
+CARD_PREFIX = "[Pre-Release Card Discussion] - "
+
 EXPANSION = "RoS"
 EXPANSION_NAME = "Rise of Shadows"
 EXPANSION_RELEASE = "2019-04-09"
