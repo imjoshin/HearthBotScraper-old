@@ -4,13 +4,16 @@ from database import Database
 
 def main():
 	while True:
-		db = Database()
-		client = get_client()
-		new_threads = get_new_threads(db, client)
-		new_cards = get_cards_from_threads(new_threads)
-		add_cards_to_db(db, new_cards)
-		db.close()
-		client = None
+		try:
+			db = Database()
+			client = get_client()
+			new_threads = get_new_threads(db, client)
+			new_cards = get_cards_from_threads(new_threads)
+			add_cards_to_db(db, new_cards)
+			db.close()
+			client = None
+		except Exception as e:
+			log("ERROR: {}".format(e.message))
 
 		log("Sleeping for %d seconds..." % (settings.SLEEP_TIME), write=False)
 		time.sleep(settings.SLEEP_TIME)
@@ -27,7 +30,7 @@ def get_new_threads(db, client):
 			db.query("SELECT * FROM card WHERE name = '%s'" % (card_name))
 			db_cards = db.fetch()
 
-			if True or len(db_cards) == 0:
+			if len(db_cards) == 0:
 				new_threads.append(submission)
 
 	return new_threads
@@ -44,7 +47,7 @@ def get_cards_from_threads(threads):
 			'class': get_regex_match(card_info, "\*\*Class\*\*: ([a-zA-Z]+)") or 'Neutral',
 			'type': get_regex_match(card_info, "\*\*Type\*\*: ([a-zA-Z]+)") or 'Minion',
 			'rarity': get_regex_match(card_info, "\*\*Rarity\*\*: ([a-zA-Z]+)") or 'Minion',
-			'text': filter_text(get_regex_match(card_info, "\*\*Text\*\*: (.*)")) or '',
+			'text': filter_text(get_regex_match(card_info, "\*\*Text\*\*: (.*)") or ''),
 			'set': settings.EXPANSION_NAME,
 			'expiration': settings.EXPANSION_RELEASE,
 			'image': get_regex_match(card_info, "\[Card Image\]\((.*)\)") or '',
