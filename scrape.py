@@ -23,7 +23,7 @@ def get_new_threads(db, client):
 	new_threads = []
 	for submission in subreddit.new():
 		if "Pre-Release Card Discussion" in submission.title:
-			card_name = submission.title.replace(settings.CARD_PREFIX, "").strip()
+			card_name = filter_text(submission.title.replace(settings.CARD_PREFIX, "")).strip()
 			db.query("SELECT * FROM card WHERE name = '%s'" % (card_name))
 			db_cards = db.fetch()
 
@@ -37,14 +37,14 @@ def get_cards_from_threads(threads):
 	for thread in threads:
 		card_info = thread.selftext
 		card = {
-			'name': thread.title.replace(settings.CARD_PREFIX, "").strip(),
+			'name': filter_text(thread.title.replace(settings.CARD_PREFIX, "")).strip(),
 			'cost': get_regex_match(card_info, "\*\*Mana Cost\*\*: ([0-9])") or '0',
 			'attack': get_regex_match(card_info, "\*\*Attack\*\*: ([0-9])") or 'null',
 			'health': get_regex_match(card_info, "\*\*Health\*\*: ([0-9])") or get_regex_match(card_info, "\*\*Durability\*\*: ([0-9])") or 'null',
 			'class': get_regex_match(card_info, "\*\*Class\*\*: ([a-zA-Z]+)") or 'Neutral',
 			'type': get_regex_match(card_info, "\*\*Type\*\*: ([a-zA-Z]+)") or 'Minion',
 			'rarity': get_regex_match(card_info, "\*\*Rarity\*\*: ([a-zA-Z]+)") or 'Minion',
-			'text': get_regex_match(card_info, "\*\*Text\*\*: (.*)") or '',
+			'text': filter_text(get_regex_match(card_info, "\*\*Text\*\*: (.*)")) or '',
 			'set': settings.EXPANSION_NAME,
 			'expiration': settings.EXPANSION_RELEASE,
 			'image': get_regex_match(card_info, "\[Card Image\]\((.*)\)") or '',
@@ -70,9 +70,14 @@ def add_cards_to_db(db, cards):
 		log("Added {}".format(card['name']))
 
 def get_regex_match(subject, regex_str, match_num=1):
-    regex = re.compile(regex_str)
-    match = regex.search(subject)
-    return match.group(match_num) if match else None
+	regex = re.compile(regex_str)
+	match = regex.search(subject)
+	return match.group(match_num) if match else None
+
+def filter_text(str):
+	str = ' '.join(str.split())
+	str = str.replace("'", "\\'")
+	return str
 
 def log(str, write=True):
 	logFile = "log"
