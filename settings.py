@@ -1,7 +1,6 @@
-RELEASE_SUB = "ROSPRDT"
-CARD_PREFIX = "[Pre-Release Card Discussion] - "
-
-EXPANSION = "RoS"
-EXPANSION_NAME = "Rise of Shadows"
-EXPANSION_RELEASE = "2019-04-09"
+#BASE_URL = "https://www.hearthstonetopdecks.com/card-category/set/expansions/demon-hunter-initiate/?st=&manaCost=&format=wild&rarity=&type=&class=&set=&mechanic=&race=&orderby=DESC-date&view=table"
+BASE_URL = "https://www.hearthstonetopdecks.com/card-category/set/expansions/ashes-of-outland/?st=&manaCost=&format=wild&rarity=&type=&class=&set=&mechanic=&race=&orderby=DESC-date&view=table"
+EXPANSION = "AoO"
+EXPANSION_NAME = "Ashes of Outland"
+EXPANSION_RELEASE = "2020-04-07"
 SLEEP_TIME = 120

@@ -1,88 +1,88 @@
-import time, datetime, praw, re
-import settings, auth
+# coding: utf-8 
+
+import time, datetime
+#import urllib2
+import urllib.request as urllib2
+import settings
 from database import Database
+from bs4 import BeautifulSoup
+import requests
 
 def main():
 	while True:
-		try:
-			db = Database()
-			client = get_client()
-			new_threads = get_new_threads(db, client)
-			new_cards = get_cards_from_threads(new_threads)
-			add_cards_to_db(db, new_cards)
-			db.close()
-			client = None
-		except Exception as e:
-			log("ERROR: {}".format(e.message))
-
-		log("Sleeping for %d seconds..." % (settings.SLEEP_TIME), write=False)
+		scan()
+		log("Sleeping for %d seconds..." % (settings.SLEEP_TIME), False)
 		time.sleep(settings.SLEEP_TIME)
 
-def get_client():
-	return praw.Reddit(client_id=auth.REDDIT_CLIENT, client_secret=auth.REDDIT_SECRET, user_agent="Hearthscrape")
+def scan():
+	db = Database()
 
-def get_new_threads(db, client):
-	subreddit = client.subreddit(settings.RELEASE_SUB)
-	new_threads = []
-	for submission in subreddit.new():
-		if "Pre-Release Card Discussion" in submission.title:
-			card_name = filter_text(submission.title.replace(settings.CARD_PREFIX, "")).strip()
-			db.query("SELECT * FROM card WHERE name = '%s'" % (card_name))
-			db_cards = db.fetch()
+	list_url = settings.BASE_URL
+	#list_page = urllib2.urlopen(list_url)
+	list_page = requests.get(list_url).text
+	list_soup = BeautifulSoup(list_page, 'html.parser')
+	cards = list_soup.find_all('tr')
+	log("Found %d cards at %s" % (len(cards), list_url))
 
-			if len(db_cards) == 0:
-				new_threads.append(submission)
+	# loop through cards
+	for card_soup in cards:
+		card_link = card_soup.find('a')
+		if not card_link:
+			continue
 
-	return new_threads
+		cname = filterText(card_link.text)
+		if cname == "Breath of the Infinite":
+			continue
 
-def get_cards_from_threads(threads):
-	cards = []
-	for thread in threads:
-		card_info = thread.selftext
-		card = {
-			'name': filter_text(thread.title.replace(settings.CARD_PREFIX, "")).strip(),
-			'cost': get_regex_match(card_info, "\*\*Mana Cost\*\*: ([0-9])") or '0',
-			'attack': get_regex_match(card_info, "\*\*Attack\*\*: ([0-9])") or 'null',
-			'health': get_regex_match(card_info, "\*\*Health\*\*: ([0-9])") or get_regex_match(card_info, "\*\*Durability\*\*: ([0-9])") or 'null',
-			'class': get_regex_match(card_info, "\*\*Class\*\*: ([a-zA-Z]+)") or 'Neutral',
-			'type': get_regex_match(card_info, "\*\*Type\*\*: ([a-zA-Z]+)") or 'Minion',
-			'rarity': get_regex_match(card_info, "\*\*Rarity\*\*: ([a-zA-Z]+)") or 'Minion',
-			'text': filter_text(get_regex_match(card_info, "\*\*Text\*\*: (.*)") or ''),
-			'set': settings.EXPANSION_NAME,
-			'expiration': settings.EXPANSION_RELEASE,
-			'image': get_regex_match(card_info, "\[Card Image\]\((.*)\)") or '',
-		}
+		db.query("SELECT * FROM card WHERE name = '%s' AND rtime IS NULL" % (cname))
+		db_cards = db.fetch()
 
-		card['text'] = card['text'].replace("**", "")
-		card['image'] = card['image'].replace("imgur", "i.imgur") + ".png"
+		# check if card needs to be parsed
+		if len(db_cards) is 0:
+			log("Found '%s'" % cname)
+			tds = card_soup.find_all('td')
+			name_td = tds[0]
+			class_td = tds[1]
+			rarity_td = tds[2]
+			type_td = tds[3]
+			cost_td = tds[4]
+			attack_td = tds[5]
+			health_td = tds[6]
+			durability_td = tds[7] if len(tds) > 7 else None
 
-		log("Found {}".format(card['name']))
+			cset = settings.EXPANSION_NAME
+			cexpiration = settings.EXPANSION_RELEASE
+			cimg = card_link.attrs['data-tooltip-img']
+			ctext = filterText(name_td.find('small').text).replace("’", "'").replace("'", "\'")
+			cclass = filterText(class_td.text)
+			crarity = filterText(rarity_td.text)
+			ctype = filterText(type_td.text)
+			ccost = filterText(cost_td.text)
+			cattack = filterText(attack_td.text or '')
+			chealth = filterText(health_td.text or (durability_td.text if durability_td else ''))
 
-		cards.append(card)
+			query =  """
+			INSERT INTO card (name, `set`, class, type, text, rarity, cost, attack, health, img, collectible, expiration, added_by)
+			VALUES ('%s', '%s', '%s', '%s', '%s', '%s', %d, %s, %s, '%s', %d, '%s', %d)
+			""" % (cname, cset, cclass, ctype, ctext, crarity, int(ccost), getNumeric(cattack), getNumeric(chealth), cimg, 1, cexpiration, -1)
 
-	return cards
+			#print(query)
+			db.query(query)
 
-def add_cards_to_db(db, cards):
-	for card in cards:
-		query =  """
-		INSERT INTO card (name, `set`, class, type, text, rarity, cost, attack, health, img, expiration, collectible, added_by)
-		VALUES ("%s", "%s", "%s", "%s", "%s", "%s", %s, %s, %s, "%s", "%s", 1, -1)
-		""" % (card['name'], card['set'], card['class'], card['type'], card['text'], card['rarity'], card['cost'], card['attack'], card['health'], card['image'], card['expiration'])
-
-		db.query(query)
-		log("Added {}".format(card['name']))
-
-def get_regex_match(subject, regex_str, match_num=1):
-	regex = re.compile(regex_str)
-	match = regex.search(subject)
-	return match.group(match_num) if match else None
-
-def filter_text(str):
-	str = ' '.join(str.split())
-	str = str.replace("'", "\\'")
+def filterText(str):
+	if str:
+		str = ' '.join(str.split())
+		str = str.replace("'", "\\'")
 	return str
 
-def log(str, write=True):
+def getNumeric(i):
+    try:
+        i = int(i)
+        return i
+    except ValueError:
+        return 'null'
+
+def log(str, write = True):
 	logFile = "log"
 	p = "%s : %s" % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f'), str)
 	print(p)
